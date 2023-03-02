@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "android:devRelease": "react-native run-android --variant release",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "type:check": "tsc -p tsconfig.json --noEmit",

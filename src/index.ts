@@ -18,6 +18,7 @@ var bleManager = NativeModules.BleManager;
 
 class BleManager {
   constructor() {
+    console.log('BleManager ctor', bleManager);
     this.isPeripheralConnected = this.isPeripheralConnected.bind(this);
   }
 
@@ -370,6 +371,10 @@ class BleManager {
         scanningOptions.callbackType = BleScanCallbackType.AllMatches;
       }
 
+      // TODO MGA: legacy mode true by default according to spec ?
+      // https://developer.android.com/reference/android/bluetooth/le/ScanSettings.Builder#setLegacy(boolean)
+
+      //TODO MGA: do no set report delay if not provided, might break scan
       // (ANDROID) Defaults to 0ms (report results immediately).
       if (scanningOptions.reportDelay == null) {
         scanningOptions.reportDelay = 0;

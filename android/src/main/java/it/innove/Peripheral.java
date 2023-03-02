@@ -56,24 +56,24 @@ public class Peripheral extends BluetoothGattCallback {
     protected volatile int advertisingRSSI;
     private volatile boolean connected = false;
     private volatile boolean connecting = false;
-    private ReactContext reactContext;
+    private final ReactContext reactContext;
 
     private BluetoothGatt gatt;
 
-    private LinkedList<Callback> connectCallbacks = new LinkedList<>();
-    private LinkedList<Callback> retrieveServicesCallbacks = new LinkedList<>();
-    private LinkedList<Callback> readCallbacks = new LinkedList<>();
-    private LinkedList<Callback> readRSSICallbacks = new LinkedList<>();
-    private LinkedList<Callback> writeCallbacks = new LinkedList<>();
-    private LinkedList<Callback> registerNotifyCallbacks = new LinkedList<>();
-    private LinkedList<Callback> requestMTUCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> connectCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> retrieveServicesCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> readCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> readRSSICallbacks = new LinkedList<>();
+    private final LinkedList<Callback> writeCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> registerNotifyCallbacks = new LinkedList<>();
+    private final LinkedList<Callback> requestMTUCallbacks = new LinkedList<>();
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private Runnable discoverServicesRunnable;
     private boolean commandQueueBusy = false;
 
-    private List<byte[]> writeQueue = new ArrayList<>();
+    private final List<byte[]> writeQueue = new ArrayList<>();
 
     public Peripheral(BluetoothDevice device, int advertisingRSSI, byte[] scanRecord, ReactContext reactContext) {
         this.device = device;
@@ -113,6 +113,7 @@ public class Peripheral extends BluetoothGattCallback {
                 this.connecting = true;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     Log.d(BleManager.LOG_TAG, " Is Or Greater than M $mBluetoothDevice");
+                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                     gatt = device.connectGatt(activity, false, this, BluetoothDevice.TRANSPORT_LE);
                 } else {
                     Log.d(BleManager.LOG_TAG, " Less than M");
@@ -126,6 +127,7 @@ public class Peripheral extends BluetoothGattCallback {
                     } catch (Exception e) {
                         e.printStackTrace();
                         Log.d(TAG, " Catch to call normal connection");
+                        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                         gatt = device.connectGatt(activity, false, this);
                     }
                 }
@@ -153,8 +155,10 @@ public class Peripheral extends BluetoothGattCallback {
 
             if (gatt != null) {
                 try {
+                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                     gatt.disconnect();
                     if (force) {
+                        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                         gatt.close();
                         gatt = null;
                         sendConnectionEvent(device, "BleManagerDisconnectPeripheral", BluetoothGatt.GATT_SUCCESS);
@@ -176,10 +180,12 @@ public class Peripheral extends BluetoothGattCallback {
         WritableMap advertising = Arguments.createMap();
 
         try {
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
             map.putString("name", device.getName());
             map.putString("id", device.getAddress()); // mac address
             map.putInt("rssi", advertisingRSSI);
 
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
             String name = device.getName();
             if (name != null)
                 advertising.putString("localName", name);
@@ -298,6 +304,7 @@ public class Peripheral extends BluetoothGattCallback {
             gatt = gatta;
 
             if (status != BluetoothGatt.GATT_SUCCESS) {
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                 gatt.close();
             }
 
@@ -309,6 +316,7 @@ public class Peripheral extends BluetoothGattCallback {
                     @Override
                     public void run() {
                         try {
+                            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                             gatt.discoverServices();
                         } catch (NullPointerException e) {
                             Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
@@ -377,7 +385,9 @@ public class Peripheral extends BluetoothGattCallback {
                 commandQueue.clear();
                 commandQueueBusy = false;
 
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                 gatt.disconnect();
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                 gatt.close();
                 gatt = null;
                 sendConnectionEvent(device, "BleManagerDisconnectPeripheral", BluetoothGatt.GATT_SUCCESS);
@@ -573,6 +583,7 @@ public class Peripheral extends BluetoothGattCallback {
             return;
         }
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         if (!gatt.setCharacteristicNotification(characteristic, notify)) {
             callback.invoke("Failed to register notification for " + characteristicUUID);
             completedCommand();
@@ -605,10 +616,12 @@ public class Peripheral extends BluetoothGattCallback {
 
         boolean result = false;
         try {
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
             result = gatt.setCharacteristicNotification(characteristic, notify);
             // Then write to descriptor
             descriptor.setValue(finalValue);
             registerNotifyCallbacks.addLast(callback);
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
             result &= gatt.writeDescriptor(descriptor);
         } catch (Exception e) {
             Log.d(BleManager.LOG_TAG, "Exception in setNotify", e);
@@ -713,6 +726,7 @@ public class Peripheral extends BluetoothGattCallback {
 			}
 		});
 	}
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
 
     private byte[] copyOf(byte[] source) {
         if (source == null) return new byte[0];
@@ -799,6 +813,7 @@ public class Peripheral extends BluetoothGattCallback {
 			Log.d(BleManager.LOG_TAG, "Could not queue readRemoteRssi command");
 		}
 	}
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
 
     public void refreshCache(Callback callback) {
         enqueue(() -> {
@@ -831,6 +846,7 @@ public class Peripheral extends BluetoothGattCallback {
                 return;
             } else {
                 this.retrieveServicesCallbacks.addLast(callback);
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                 gatt.discoverServices();
             }
         });
@@ -885,6 +901,15 @@ public class Peripheral extends BluetoothGattCallback {
 			}
 		});
 	}
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
+                    // TODO: Consider calling
+                    //    ActivityCompat#requestPermissions
+                    // here to request the missing permissions, and then overriding
+                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                    //                                          int[] grantResults)
+                    // to handle the case where the user grants the permission. See the documentation
+                    // for ActivityCompat#requestPermissions for more details.
+                    // write without response, caller will handle the callback
 
     public void write(UUID serviceUUID, UUID characteristicUUID, byte[] data, Integer maxByteSize, Integer queueSleepTime, Callback callback, int writeType) {
         enqueue(() -> {
@@ -975,6 +1000,7 @@ public class Peripheral extends BluetoothGattCallback {
         enqueue(() -> {
             if (gatt != null) {
                 if (Build.VERSION.SDK_INT >= LOLLIPOP) {
+                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                     boolean status = gatt.requestConnectionPriority(connectionPriority);
                     callback.invoke(null, status);
                 } else {
@@ -1017,6 +1043,7 @@ public class Peripheral extends BluetoothGattCallback {
 			}
 		});
 	}
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
 
 	@Override
 	public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {

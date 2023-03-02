@@ -41,6 +41,7 @@ public class LollipopScanManager extends ScanManager {
         // update scanSessionId to prevent stopping next scan by running timeout thread
         scanSessionId.incrementAndGet();
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         getBluetoothAdapter().getBluetoothLeScanner().stopScan(mScanCallback);
         callback.invoke();
     }
@@ -92,6 +93,43 @@ public class LollipopScanManager extends ScanManager {
             }
         }
 
+        // if (manufacturerInfos.size() > 0) {
+
+        //   for(int i = 0; i < serviceUUIDs.size(); i++){
+        // ReadableMap manufacturerInfo = manufacturerInfos.getMap(i);
+        // ReadableMap manufacturerInfo = {
+        //     id: '1',
+        //     data: [],
+        //     mask: [],
+        // }
+
+        // int id = manufacturerInfo.getInt("id");
+        // ArrayList<Object> data = manufacturerInfo.getArray("data").toArrayList();
+        // ArrayList<Object> mask = manufacturerInfo.getArray("mask").toArrayList();
+        // byte[] backgroundAdvertData = new byte[data.size()];
+        // byte[] backgroundAdvertMask = new byte[mask.size()];
+        // for (int j = 0; j < data.size(); j++){
+        //   backgroundAdvertData[j] = ((Double) data.get(j)).byteValue();
+        //   backgroundAdvertMask[j] = ((Double) mask.get(j)).byteValue();
+        // }
+        // // Log the manufacturer data value to filter
+        // StringBuilder dataString = new StringBuilder();
+        // StringBuilder maskString = new StringBuilder();
+        //   for (byte b : backgroundAdvertData) {
+        //       dataString.append(String.format("%x", b));
+        //       dataString.append(", ");
+        //   }
+        //   for (byte b : backgroundAdvertMask) {
+        //       maskString.append(String.format("%x", b));
+        //       maskString.append(", ");
+        //   }
+        // Log.d(bleManager.LOG_TAG,"ManufacturerDataFilter: " + dataString);
+        // Log.d(bleManager.LOG_TAG,"ManufacturerMaskFilter: " + maskString);
+
+        // filters.add(new ScanFilter.Builder().setManufacturerData(id, backgroundAdvertData, backgroundAdvertMask).build());
+        //   }
+        // }
+
         if (options.hasKey("exactAdvertisingName")) {
             String expectedName = options.getString("exactAdvertisingName");
             Log.d(BleManager.LOG_TAG, "Filter on advertising name:" + expectedName);
@@ -99,11 +137,13 @@ public class LollipopScanManager extends ScanManager {
             filters.add(filter);
         }
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         getBluetoothAdapter().getBluetoothLeScanner().startScan(filters, scanSettingsBuilder.build(), mScanCallback);
 
+        // try to stop scan after given seconds. otherwise let OS decides
         if (scanSeconds > 0) {
             Thread thread = new Thread() {
-                private int currentScanSession = scanSessionId.incrementAndGet();
+                private final int currentScanSession = scanSessionId.incrementAndGet();
 
                 @Override
                 public void run() {
@@ -118,12 +158,17 @@ public class LollipopScanManager extends ScanManager {
                         public void run() {
                             BluetoothAdapter btAdapter = getBluetoothAdapter();
 
+                            Log.d(BleManager.LOG_TAG, "ScanManager stopping scan after required time" + scanSeconds);
+                            Log.d(BleManager.LOG_TAG, "ScanManager stopping scan, currentScanSession=" + currentScanSession + " , scanSessionId=" + scanSessionId.intValue() + ", bleAdapter=" + btAdapter);
+
                             // check current scan session was not stopped
                             if (scanSessionId.intValue() == currentScanSession) {
                                 if (btAdapter.getState() == BluetoothAdapter.STATE_ON) {
+                                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                                     btAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
                                 }
 
+                                Log.d(BleManager.LOG_TAG, "ScanManager stopScan called. sending stop status 10.");
                                 WritableMap map = Arguments.createMap();
                                 map.putInt("status", 10);
                                 bleManager.sendEvent("BleManagerStopScan", map);
@@ -172,6 +217,7 @@ public class LollipopScanManager extends ScanManager {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
+                    Log.d(BleManager.LOG_TAG, "onScanResult: " + result);
                     onDiscoveredPeripheral(result);
                 }
             });
@@ -183,10 +229,12 @@ public class LollipopScanManager extends ScanManager {
                 @Override
                 public void run() {
                     if (results.isEmpty()) {
+                        Log.d(BleManager.LOG_TAG, "BatchScanResults empty");
                         return;
                     }
 
                     for (ScanResult result : results) {
+                        Log.d(BleManager.LOG_TAG, "onBatchScanResults: " + results);
                         onDiscoveredPeripheral(result);
                     }
                 }

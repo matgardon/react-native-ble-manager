@@ -24,11 +24,12 @@ public class LegacyScanManager extends ScanManager {
         // update scanSessionId to prevent stopping next scan by running timeout thread
         scanSessionId.incrementAndGet();
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         getBluetoothAdapter().stopLeScan(mLeScanCallback);
         callback.invoke();
     }
 
-    private BluetoothAdapter.LeScanCallback mLeScanCallback =
+    private final BluetoothAdapter.LeScanCallback mLeScanCallback =
             new BluetoothAdapter.LeScanCallback() {
 
                 @Override
@@ -37,6 +38,7 @@ public class LegacyScanManager extends ScanManager {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                             Log.i(BleManager.LOG_TAG, "DiscoverPeripheral: " + device.getName());
 
                             Peripheral peripheral = bleManager.getPeripheral(device);
@@ -62,11 +64,12 @@ public class LegacyScanManager extends ScanManager {
         if (serviceUUIDs.size() > 0) {
             Log.d(BleManager.LOG_TAG, "Filter is not working in pre-lollipop devices");
         }
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         getBluetoothAdapter().startLeScan(mLeScanCallback);
 
         if (scanSeconds > 0) {
             Thread thread = new Thread() {
-                private int currentScanSession = scanSessionId.incrementAndGet();
+                private final int currentScanSession = scanSessionId.incrementAndGet();
 
                 @Override
                 public void run() {
@@ -83,6 +86,7 @@ public class LegacyScanManager extends ScanManager {
                             // check current scan session was not stopped
                             if (scanSessionId.intValue() == currentScanSession) {
                                 if (btAdapter.getState() == BluetoothAdapter.STATE_ON) {
+                                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                                     btAdapter.stopLeScan(mLeScanCallback);
                                 }
                                 WritableMap map = Arguments.createMap();

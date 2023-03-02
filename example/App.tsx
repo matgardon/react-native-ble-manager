@@ -20,7 +20,7 @@ import {
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 
-const SECONDS_TO_SCAN_FOR = 7;
+const SECONDS_TO_SCAN_FOR = 5;
 const SERVICE_UUIDS: string[] = [];
 const ALLOW_DUPLICATES = true;
 
@@ -49,7 +49,7 @@ const App = () => {
     new Map<Peripheral['id'], Peripheral>(),
   );
 
-  console.debug('peripherals map updated', [...peripherals.entries()]);
+  // console.debug('peripherals map updated', [...peripherals.entries()]);
 
   const addOrUpdatePeripheral = (id: string, updatedPeripheral: Peripheral) => {
     // new Map() enables changing the reference & refreshing UI.
@@ -68,7 +68,9 @@ const App = () => {
         BleManager.scan(SERVICE_UUIDS, SECONDS_TO_SCAN_FOR, ALLOW_DUPLICATES, {
           matchMode: BleScanMatchMode.Sticky,
           scanMode: BleScanMode.LowLatency,
-          callbackType: BleScanCallbackType.AllMatches,
+          // callbackType: BleScanCallbackType.AllMatches,
+          callbackType: BleScanCallbackType.FirstMatch,
+          exactAdvertisingName: 'GEN_V4',
         })
           .then(() => {
             console.debug('[startScan] scan promise returned successfully.');

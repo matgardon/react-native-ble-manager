@@ -8,4 +8,8 @@
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
+
+    <!-- TODO android studio detects them as needed to compile project -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 </manifest>

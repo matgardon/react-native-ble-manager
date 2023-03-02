@@ -44,10 +44,10 @@ class BleManager extends ReactContextBaseJavaModule {
     public static final String LOG_TAG = "ReactNativeBleManager";
     private static final int ENABLE_REQUEST = 539;
 
-    private class BondRequest {
-        private String uuid;
+    private static class BondRequest {
+        private final String uuid;
         private String pin;
-        private Callback callback;
+        private final Callback callback;
 
         BondRequest(String _uuid, Callback _callback) {
             uuid = _uuid;
@@ -63,8 +63,8 @@ class BleManager extends ReactContextBaseJavaModule {
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothManager bluetoothManager;
-    private Context context;
-    private ReactApplicationContext reactContext;
+    private final Context context;
+    private final ReactApplicationContext reactContext;
     private Callback enableBluetoothCallback;
     private ScanManager scanManager;
     private BondRequest bondRequest;
@@ -147,6 +147,7 @@ class BleManager extends ReactContextBaseJavaModule {
             scanManager = new LegacyScanManager(reactContext, this);
         }
 
+        //TODO MGA: why start a BOND_STATE_CHANGED here ???? + PAIRING REQUEST ?
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         context.registerReceiver(mReceiver, filter);
@@ -169,8 +170,17 @@ class BleManager extends ReactContextBaseJavaModule {
             Intent intentEnable = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             if (getCurrentActivity() == null)
                 callback.invoke("Current activity not available");
-            else
-                getCurrentActivity().startActivityForResult(intentEnable, ENABLE_REQUEST);
+            else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }getCurrentActivity().startActivityForResult(intentEnable, ENABLE_REQUEST);
         } else
             callback.invoke();
     }
@@ -184,6 +194,8 @@ class BleManager extends ReactContextBaseJavaModule {
             callback.invoke("No bluetooth support");
             return;
         }
+
+        //TODO MGA callback error ble not enabled ?
         if (!getBluetoothAdapter().isEnabled()) {
             return;
         }
@@ -199,6 +211,7 @@ class BleManager extends ReactContextBaseJavaModule {
         }
 
         if (scanManager != null)
+            // TODO MGA: pass allowDuplicates as a flag to be implemented as CallbackType in scanOptions ?
             scanManager.scan(serviceUUIDs, scanSeconds, options, callback);
     }
 
@@ -211,6 +224,7 @@ class BleManager extends ReactContextBaseJavaModule {
             return;
         }
         if (!getBluetoothAdapter().isEnabled()) {
+            //TODO MGA: callback error, BLE not enabled !
             callback.invoke();
             return;
         }
@@ -218,6 +232,7 @@ class BleManager extends ReactContextBaseJavaModule {
             scanManager.stopScan(callback);
             WritableMap map = Arguments.createMap();
             map.putInt("status", 0);
+            // TODO MGA: stop scan might take a while to complete ? wait for event ?
             sendEvent("BleManagerStopScan", map);
         }
     }
@@ -226,6 +241,7 @@ class BleManager extends ReactContextBaseJavaModule {
     public void createBond(String peripheralUUID, String peripheralPin, Callback callback) {
         Log.d(LOG_TAG, "Request bond to: " + peripheralUUID);
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         Set<BluetoothDevice> deviceSet = getBluetoothAdapter().getBondedDevices();
         for (BluetoothDevice device : deviceSet) {
             if (peripheralUUID.equalsIgnoreCase(device.getAddress())) {
@@ -241,6 +257,7 @@ class BleManager extends ReactContextBaseJavaModule {
         } else if (bondRequest != null) {
             callback.invoke("Only allow one bond request at a time");
             return;
+            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         } else if (peripheral.getDevice().createBond()) {
             Log.d(LOG_TAG, "Request bond successful for: " + peripheralUUID);
             bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for boradcast
@@ -353,7 +370,7 @@ class BleManager extends ReactContextBaseJavaModule {
         if (peripheral != null) {
             byte[] decoded = new byte[message.size()];
             for (int i = 0; i < message.size(); i++) {
-                decoded[i] = new Integer(message.getInt(i)).byteValue();
+                decoded[i] = Integer.valueOf(i).byteValue();
             }
             Log.d(LOG_TAG, "Message(" + decoded.length + "): " + bytesToHex(decoded));
             peripheral.write(UUIDHelper.uuidFromString(serviceUUID), UUIDHelper.uuidFromString(characteristicUUID),
@@ -495,6 +512,9 @@ class BleManager extends ReactContextBaseJavaModule {
     @ReactMethod
     public void setName(String name) {
         BluetoothAdapter adapter = getBluetoothAdapter();
+        //TODO MGA wrap call in promise or return boolean if possible in @ReactMethod context
+
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         adapter.setName(name);
     }
 
@@ -562,6 +582,7 @@ class BleManager extends ReactContextBaseJavaModule {
                         bondRequest.callback.invoke("Bond request has been denied");
                         bondRequest = null;
                     }
+                    //TODO MGA other bondStates to cover !!! trigger callback to tell app of currently bonding/unbonding state
                 }
 
                 if (bondState == BluetoothDevice.BOND_BONDED) {
@@ -583,6 +604,7 @@ class BleManager extends ReactContextBaseJavaModule {
             } else if (action.equals(BluetoothDevice.ACTION_PAIRING_REQUEST)) {
                 BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (bondRequest != null && bondRequest.uuid.equals(bluetoothDevice.getAddress()) && bondRequest.pin != null) {
+                    // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                     bluetoothDevice.setPin(bondRequest.pin.getBytes());
                     bluetoothDevice.createBond();
                 }
@@ -636,6 +658,7 @@ class BleManager extends ReactContextBaseJavaModule {
             return;
         }
 
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         List<BluetoothDevice> periperals = getBluetoothManager().getConnectedDevices(GATT);
         for (BluetoothDevice entry : periperals) {
             Peripheral peripheral = savePeripheral(entry);
@@ -649,6 +672,7 @@ class BleManager extends ReactContextBaseJavaModule {
     public void getBondedPeripherals(Callback callback) {
         Log.d(LOG_TAG, "Get bonded peripherals");
         WritableArray map = Arguments.createArray();
+        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         Set<BluetoothDevice> deviceSet = getBluetoothAdapter().getBondedDevices();
         for (BluetoothDevice device : deviceSet) {
             Peripheral peripheral;
@@ -714,6 +738,7 @@ class BleManager extends ReactContextBaseJavaModule {
         return new String(hexChars);
     }
 
+    // TODO MGA: preserve buffer // byteArray instead of converting to integer each byte ?
     public static WritableArray bytesToWritableArray(byte[] bytes) {
         WritableArray value = Arguments.createArray();
         for (int i = 0; i < bytes.length; i++)
@@ -745,11 +770,13 @@ class BleManager extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void addListener(String eventName) {
+        // TODO MGA: explains warning runtime ???
         // Keep: Required for RN built in Event Emitter Calls.
     }
 
     @ReactMethod
     public void removeListeners(Integer count) {
+        // TODO MGA: explains warning runtime ???
         // Keep: Required for RN built in Event Emitter Calls.
     }
 
