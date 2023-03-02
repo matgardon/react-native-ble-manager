@@ -17,6 +17,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ActivityEventListener;
@@ -103,6 +104,7 @@ class BleManager extends ReactContextBaseJavaModule {
         Log.d(LOG_TAG, "BleManager created");
     }
 
+    @NonNull
     @Override
     public String getName() {
         return "BleManager";
@@ -200,13 +202,7 @@ class BleManager extends ReactContextBaseJavaModule {
         }
 
         synchronized (peripherals) {
-            for (Iterator<Map.Entry<String, Peripheral>> iterator = peripherals.entrySet().iterator(); iterator
-                    .hasNext(); ) {
-                Map.Entry<String, Peripheral> entry = iterator.next();
-                if (!(entry.getValue().isConnected() || entry.getValue().isConnecting())) {
-                    iterator.remove();
-                }
-            }
+            peripherals.entrySet().removeIf(entry -> !(entry.getValue().isConnected() || entry.getValue().isConnecting()));
         }
 
         if (scanManager != null)
@@ -259,7 +255,7 @@ class BleManager extends ReactContextBaseJavaModule {
             // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
         } else if (peripheral.getDevice().createBond()) {
             Log.d(LOG_TAG, "Request bond successful for: " + peripheralUUID);
-            bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for boradcast
+            bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for broadcast
             return;
         }
 

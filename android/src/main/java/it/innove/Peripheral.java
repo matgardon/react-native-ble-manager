@@ -3,6 +3,7 @@ package it.innove;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static com.facebook.react.common.ReactConstants.TAG;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -12,6 +13,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,6 +21,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -211,14 +214,11 @@ public class Peripheral extends BluetoothGattCallback {
         WritableArray characteristicsArray = Arguments.createArray();
 
         if (connected && gatt != null) {
-            for (Iterator<BluetoothGattService> it = gatt.getServices().iterator(); it.hasNext(); ) {
-                BluetoothGattService service = it.next();
+            for (BluetoothGattService service : gatt.getServices()) {
                 WritableMap serviceMap = Arguments.createMap();
                 serviceMap.putString("uuid", UUIDHelper.uuidToString(service.getUuid()));
 
-                for (Iterator<BluetoothGattCharacteristic> itCharacteristic = service.getCharacteristics()
-                        .iterator(); itCharacteristic.hasNext(); ) {
-                    BluetoothGattCharacteristic characteristic = itCharacteristic.next();
+                for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
                     WritableMap characteristicsMap = Arguments.createMap();
 
                     characteristicsMap.putString("service", UUIDHelper.uuidToString(service.getUuid()));
@@ -312,17 +312,14 @@ public class Peripheral extends BluetoothGattCallback {
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 connected = true;
 
-                discoverServicesRunnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
-                            gatt.discoverServices();
-                        } catch (NullPointerException e) {
-                            Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
-                        }
-                        discoverServicesRunnable = null;
+                discoverServicesRunnable = () -> {
+                    try {
+                        // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
+                        gatt.discoverServices();
+                    } catch (NullPointerException e) {
+                        Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
                     }
+                    discoverServicesRunnable = null;
                 };
 
                 mainHandler.post(discoverServicesRunnable);
@@ -902,6 +899,7 @@ public class Peripheral extends BluetoothGattCallback {
 		});
 	}
                 // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
+                // if (ActivityCompat.checkSelfPermission(reactContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                     // TODO: Consider calling
                     //    ActivityCompat#requestPermissions
                     // here to request the missing permissions, and then overriding
