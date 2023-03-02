@@ -170,7 +170,7 @@ class BleManager extends ReactContextBaseJavaModule {
             Intent intentEnable = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             if (getCurrentActivity() == null)
                 callback.invoke("Current activity not available");
-            else if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            else if (ActivityCompat.checkSelfPermission(this.reactContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 // TODO MGA: writeCharacteristic() may throw exception if user does not grant permissions !! introduce checks in lib instead of relying on client apps guards
                 // TODO: Consider calling
                 //    ActivityCompat#requestPermissions
