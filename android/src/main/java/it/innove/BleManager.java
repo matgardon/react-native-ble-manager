@@ -75,23 +75,6 @@ class BleManager extends ReactContextBaseJavaModule {
         return reactContext;
     }
 
-    private final ActivityEventListener mActivityEventListener = new BaseActivityEventListener() {
-
-        @Override
-        public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
-            Log.d(LOG_TAG, "onActivityResult");
-            if (requestCode == ENABLE_REQUEST && enableBluetoothCallback != null) {
-                if (resultCode == RESULT_OK) {
-                    enableBluetoothCallback.invoke();
-                } else {
-                    enableBluetoothCallback.invoke("User refused to enable");
-                }
-                enableBluetoothCallback = null;
-            }
-        }
-
-    };
-
     // key is the MAC Address
     private final Map<String, Peripheral> peripherals = new LinkedHashMap<>();
     // scan session id
@@ -100,6 +83,22 @@ class BleManager extends ReactContextBaseJavaModule {
         super(reactContext);
         context = reactContext;
         this.reactContext = reactContext;
+        ActivityEventListener mActivityEventListener = new BaseActivityEventListener() {
+
+            @Override
+            public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
+                Log.d(LOG_TAG, "onActivityResult");
+                if (requestCode == ENABLE_REQUEST && enableBluetoothCallback != null) {
+                    if (resultCode == RESULT_OK) {
+                        enableBluetoothCallback.invoke();
+                    } else {
+                        enableBluetoothCallback.invoke("User refused to enable");
+                    }
+                    enableBluetoothCallback = null;
+                }
+            }
+
+        };
         reactContext.addActivityEventListener(mActivityEventListener);
         Log.d(LOG_TAG, "BleManager created");
     }
