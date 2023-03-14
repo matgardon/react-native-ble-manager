@@ -28,6 +28,16 @@ export enum BleState {
   TurningOff = 'turning_off',
 }
 
+/**
+ * [android only] see https://developer.android.com/reference/android/bluetooth/BluetoothDevice#EXTRA_BOND_STATE.
+ */ 
+export enum BondState {
+  Unknown = 'UNKNOWN',
+  Bonded = 'BOND_BONDED',
+  Bonding = 'BOND_BONDING',
+  None = 'BOND_NONE',
+}
+
 export interface Peripheral {
   id: string;
   rssi: number;
@@ -232,6 +242,10 @@ export enum BleEventType {
    */
   BleManagerPeripheralDidBond = 'BleManagerPeripheralDidBond',
   /**
+   * [Android only]
+   */
+  BleManagerPeripheralBondStateChanged = 'BleManagerPeripheralBondStateChanged',
+  /**
    * [iOS only]
    */
   BleManagerCentralManagerWillRestoreState = 'BleManagerCentralManagerWillRestoreState',
@@ -245,11 +259,11 @@ export interface BleStopScanEvent {
   /**
    * [iOS only]
    */
-  status?: number;
+  readonly status?: number;
 }
 
 export interface BleManagerDidUpdateStateEvent {
-  state: BleState;
+  readonly state: BleState;
 }
 
 export interface BleConnectPeripheralEvent {
@@ -269,6 +283,21 @@ export type BleDiscoverPeripheralEvent = Peripheral;
  * [Android only]
  */
 export type BleBondedPeripheralEvent = Peripheral;
+
+/**
+ * [Android only]
+ */
+export type BleBondStateChangedPeripheralEvent = {
+  /**
+   * peripheral id
+   */
+  readonly peripheral: string;
+  /**
+   * new bond state.
+   */
+  readonly bondState: BondState;
+
+};
 
 export interface BleDisconnectPeripheralEvent {
   /**

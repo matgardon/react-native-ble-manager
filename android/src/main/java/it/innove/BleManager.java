@@ -243,6 +243,7 @@ class BleManager extends ReactContextBaseJavaModule {
             Log.d(LOG_TAG, "bond request already in progress, waiting for bond state change: " + peripheralUUID);
             // attach listener to already pending bond request to get informed of bonding result
             bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback);
+            return;
         } else if (peripheral.getDevice().createBond()) {
             Log.d(LOG_TAG, "bond request successful for: " + peripheralUUID);
             bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for broadcast
@@ -555,7 +556,14 @@ class BleManager extends ReactContextBaseJavaModule {
                         bondStateStr = "BOND_NONE";
                         break;
                 }
-                Log.d(LOG_TAG, "bond state: " + bondStateStr);
+                WritableMap bondStateChangedMap = Arguments.createMap();
+                bondStateChangedMap.putString("bondState", bondStateStr);
+                // TODO : it's possible to add previousBondState if needed
+                bondStateChangedMap.putString("peripheral", device.getAddress());
+
+                Log.d(LOG_TAG, "bond state changed: " + bondStateStr + " for peripheral: " + device.getAddress());
+                // emit bond state change event, even when not actively listening to bonding events for a specific device
+                sendEvent("BleManagerPeripheralBondStateChanged", bondStateChangedMap);
 
                 if (bondRequest != null && bondRequest.uuid.equals(device.getAddress())) {
                     if (bondState == BluetoothDevice.BOND_BONDED) {
@@ -574,17 +582,20 @@ class BleManager extends ReactContextBaseJavaModule {
                     } else {
                         peripheral = new Peripheral(device, reactContext);
                     }
+                    Log.d(LOG_TAG, "device bond successful: " + device.getAddress());
                     WritableMap map = peripheral.asWritableMap();
                     sendEvent("BleManagerPeripheralDidBond", map);
                 }
 
                 if (removeBondRequest != null && removeBondRequest.uuid.equals(device.getAddress())
                         && bondState == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED) {
+                    Log.d(LOG_TAG, "device bond successfully removed: " + removeBondRequest.uuid);
                     removeBondRequest.callback.invoke();
                     removeBondRequest = null;
                 }
             } else if (action.equals(BluetoothDevice.ACTION_PAIRING_REQUEST)) {
                 BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                Log.d(LOG_TAG, "pairing request intent received: " + bluetoothDevice.getAddress());
                 if (bondRequest != null && bondRequest.uuid.equals(bluetoothDevice.getAddress()) && bondRequest.pin != null) {
                     bluetoothDevice.setPin(bondRequest.pin.getBytes());
                     bluetoothDevice.createBond();
