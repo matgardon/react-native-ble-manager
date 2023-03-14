@@ -226,27 +226,30 @@ class BleManager extends ReactContextBaseJavaModule {
     public void createBond(String peripheralUUID, String peripheralPin, Callback callback) {
         Log.d(LOG_TAG, "Request bond to: " + peripheralUUID);
 
-        Set<BluetoothDevice> deviceSet = getBluetoothAdapter().getBondedDevices();
-        for (BluetoothDevice device : deviceSet) {
-            if (peripheralUUID.equalsIgnoreCase(device.getAddress())) {
-                callback.invoke();
-                return;
-            }
-        }
-
         Peripheral peripheral = retrieveOrCreatePeripheral(peripheralUUID);
+
         if (peripheral == null) {
             callback.invoke("Invalid peripheral uuid");
             return;
+        } else if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDED) {
+            // device already bonded, return in success.
+            callback.invoke();
+            return;
         } else if (bondRequest != null) {
+            // bondRequest already triggered internally
             callback.invoke("Only allow one bond request at a time");
             return;
+        } else if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDING) {
+            Log.d(LOG_TAG, "bond request already in progress, waiting for bond state change: " + peripheralUUID);
+            // attach listener to already pending bond request to get informed of bonding result
+            bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback);
         } else if (peripheral.getDevice().createBond()) {
-            Log.d(LOG_TAG, "Request bond successful for: " + peripheralUUID);
-            bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for boradcast
+            Log.d(LOG_TAG, "bond request successful for: " + peripheralUUID);
+            bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback); // request bond success, waiting for broadcast
             return;
         }
-
+        // createBond() failed straight away
+        // see possible reasons here: https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()
         callback.invoke("Create bond request fail");
     }
 
