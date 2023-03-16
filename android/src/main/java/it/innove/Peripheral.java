@@ -291,6 +291,47 @@ public class Peripheral extends BluetoothGattCallback {
 		});
 	}
 
+    private void callAllCallbacksWithCommonError(String errorMessage) {
+        if (discoverServicesRunnable != null) {
+            mainHandler.removeCallbacks(discoverServicesRunnable);
+            discoverServicesRunnable = null;
+        }
+
+        for (Callback writeCallback : writeCallbacks) {
+            writeCallback.invoke(errorMessage);
+        }
+        writeCallbacks.clear();
+
+        for (Callback retrieveServicesCallback : retrieveServicesCallbacks) {
+            retrieveServicesCallback.invoke(errorMessage);
+        }
+        retrieveServicesCallbacks.clear();
+
+        for (Callback readRSSICallback : readRSSICallbacks) {
+            readRSSICallback.invoke(errorMessage);
+        }
+        readRSSICallbacks.clear();
+
+        for (Callback registerNotifyCallback : registerNotifyCallbacks) {
+            registerNotifyCallback.invoke(errorMessage);
+        }
+        registerNotifyCallbacks.clear();
+
+        for (Callback requestMTUCallback : requestMTUCallbacks) {
+            requestMTUCallback.invoke(errorMessage);
+        }
+        requestMTUCallbacks.clear();
+
+        for (Callback readCallback : readCallbacks) {
+            readCallback.invoke(errorMessage);
+        }
+        readCallbacks.clear();
+
+        for (Callback connectCallback : connectCallbacks) {
+            connectCallback.invoke(errorMessage);
+        }
+        connectCallbacks.clear();
+    }
     @Override
     public void onConnectionStateChange(BluetoothGatt gatta, int status, final int newState) {
 
@@ -332,45 +373,7 @@ public class Peripheral extends BluetoothGattCallback {
 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
 
-                if (discoverServicesRunnable != null) {
-                    mainHandler.removeCallbacks(discoverServicesRunnable);
-                    discoverServicesRunnable = null;
-                }
-
-                for (Callback writeCallback : writeCallbacks) {
-					writeCallback.invoke("Device disconnected");
-				}
-				writeCallbacks.clear();
-
-                for (Callback retrieveServicesCallback : retrieveServicesCallbacks) {
-					retrieveServicesCallback.invoke("Device disconnected");
-				}
-				retrieveServicesCallbacks.clear();
-
-                for (Callback readRSSICallback : readRSSICallbacks) {
-					readRSSICallback.invoke("Device disconnected");
-				}
-				readRSSICallbacks.clear();
-
-                for (Callback registerNotifyCallback : registerNotifyCallbacks) {
-					registerNotifyCallback.invoke("Device disconnected");
-				}
-				registerNotifyCallbacks.clear();
-
-                for (Callback requestMTUCallback : requestMTUCallbacks) {
-					requestMTUCallback.invoke("Device disconnected");
-				}
-				requestMTUCallbacks.clear();
-
-                for (Callback readCallback : readCallbacks) {
-					readCallback.invoke("Device disconnected");
-				}
-				readCallbacks.clear();
-
-                for (Callback connectCallback : connectCallbacks) {
-					connectCallback.invoke("Connection error");
-				}
-				connectCallbacks.clear();
+                callAllCallbacksWithCommonError("Device disconnected");
 
                 writeQueue.clear();
                 commandQueue.clear();
@@ -789,7 +792,12 @@ public class Peripheral extends BluetoothGattCallback {
 
             // Check if we still have a valid gatt object
             if (gatt == null) {
-                Log.d(BleManager.LOG_TAG, "Error, gatt is null");
+                Log.e(BleManager.LOG_TAG, "Error, gatt is null");
+                // we don't know which callback needs to be informed of a null GATT,
+                // so we tell all callbacks that may still be pending to avoid
+                // leaving them in an infinite loop.
+                callAllCallbacksWithCommonError("Error, gatt is null");
+
                 commandQueue.clear();
                 commandQueueBusy = false;
                 return;
