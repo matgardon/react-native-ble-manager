@@ -594,8 +594,12 @@ class BleManager extends ReactContextBaseJavaModule {
                 }
 
                 if (removeBondRequest != null && removeBondRequest.uuid.equals(device.getAddress())
-                        && bondState == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED) {
+                        && bondState == BluetoothDevice.BOND_NONE) {
+                    if (prevState == BluetoothDevice.BOND_BONDED || prevState == BluetoothDevice.BOND_BONDING) {
                     Log.d(LOG_TAG, "device bond successfully removed: " + removeBondRequest.uuid);
+                    } else {
+                        Log.d(LOG_TAG, "device bond was already removed: " + removeBondRequest.uuid);
+                    }
                     removeBondRequest.callback.invoke();
                     removeBondRequest = null;
                 }
