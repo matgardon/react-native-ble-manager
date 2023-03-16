@@ -231,15 +231,21 @@ class BleManager extends ReactContextBaseJavaModule {
         if (peripheral == null) {
             callback.invoke("Invalid peripheral uuid");
             return;
-        } else if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDED) {
+
+        }
+
+        if (bondRequest != null) {
+            // bondRequest already triggered internally
+            // TODO: this may be from a previous failure to bond/connect with an automatic disconnect after trying to bond,
+            // we need to update the request because it hasn't been deleted automatically in that case.
+            Log.d(LOG_TAG, "a bondRequest was already attached. only allow one bond request at a time, forgetting previous bondRequest.");
+        }
+
+        if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDED) {
             // device already bonded, return in success.
             callback.invoke();
             return;
-        } else if (bondRequest != null) {
-            // bondRequest already triggered internally
-            callback.invoke("Only allow one bond request at a time");
-            return;
-        } else if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDING) {
+        }  else if (peripheral.getDevice().getBondState() == BluetoothDevice.BOND_BONDING) {
             Log.d(LOG_TAG, "bond request already in progress, waiting for bond state change: " + peripheralUUID);
             // attach listener to already pending bond request to get informed of bonding result
             bondRequest = new BondRequest(peripheralUUID, peripheralPin, callback);
