@@ -47,8 +47,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class Peripheral extends BluetoothGattCallback {
 
     private static final String CHARACTERISTIC_NOTIFICATION_CONFIG = "00002902-0000-1000-8000-00805f9b34fb";
-    public static final int GATT_INSUFFICIENT_AUTHENTICATION = 5;
-    public static final int GATT_AUTH_FAIL = 137;
+
+    public static final int GATT_INSUFFICIENT_AUTHENTICATION = 0x05;
+    public static final int GATT_INSUFFICIENT_AUTHORIZATION = 0x08;
+    public static final int GATT_AUTH_FAIL = 0x89;
+    // public static final int GATT_INSUFFICIENT_ENCRYPTION = 0x0F;
 
     private final BluetoothDevice device;
     private final Map<String, NotifyBufferContainer> bufferedCharacteristics;
@@ -102,7 +105,7 @@ public class Peripheral extends BluetoothGattCallback {
             map.putInt("status", status);
         }
         sendEvent(eventName, map);
-        Log.d(BleManager.LOG_TAG, "Peripheral event (" + eventName + "):" + device.getAddress());
+        Log.d(BleManager.LOG_TAG, "Peripheral event (" + eventName + "):" + device.getAddress() + ". status=" + status);
     }
 
     public void connect(final Callback callback, Activity activity) {
@@ -440,19 +443,48 @@ public class Peripheral extends BluetoothGattCallback {
         }
     }
 
+    // related codebases:
+    // - nordic : https://github.com/NordicSemiconductor/Android-BLE-Library/blob/7b0b88dbcac6f215c1f8e2c5762ce701eb510797/ble/src/main/java/no/nordicsemi/android/ble/BleManagerHandler.java#L2374
+    // - blessedBLE: https://github.com/weliem/blessed-android/blob/ee8d966692a233457ed8ac967ba37a5ef9d69630/blessed/src/main/java/com/welie/blessed/BluetoothPeripheral.java#L343
+    private boolean shouldIgnoreBondingError(int status, BluetoothGatt gatt) {
+        if (status == GATT_AUTH_FAIL
+                || status == GATT_INSUFFICIENT_AUTHENTICATION
+                || status == GATT_INSUFFICIENT_AUTHORIZATION
+            // according to nordic, insufficient encryption does not seem to be necessary for bonding errors.
+            // || status == GATT_INSUFFICIENT_ENCRYPTION
+        ) {
+            if (gatt.getDevice().getBondState() == BluetoothDevice.BOND_BONDED) {
+                Log.e(TAG, "unexpected auth error while bonded. status=" + status);
+                return false; // do not ignore error, it should not happen at this point
+
+            }
+
+            // Characteristic/descriptor is encrypted and needs bonding, bonding should be in progress already
+            // Operation will be retried (automatically ??) after bonding is completed.
+            // This error status only seem to reach here on Android 5/6/7.
+            // On newer versions Android will do retry internally and only return once bonding processed.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                Log.i(TAG, "operation will be retried after bonding, bonding should be in progress");
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicRead(gatt, characteristic, status);
 
         mainHandler.post(() -> {
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                if (status == GATT_AUTH_FAIL || status == GATT_INSUFFICIENT_AUTHENTICATION) {
-                    Log.d(BleManager.LOG_TAG, "Read needs bonding");
+                if (shouldIgnoreBondingError(status, gatt)) {
+                    Log.e(BleManager.LOG_TAG, "Read needs bonding. charac=" + characteristic.getUuid());
+                    return;
                 }
 
 				for (Callback readCallback: readCallbacks) {
 					readCallback.invoke(
-							"Error reading " + characteristic.getUuid() + " status=" + status,
+                            "Error reading charac=" + characteristic.getUuid() + ". status=" + status,
 							null
 					);
 				}
@@ -480,13 +512,13 @@ public class Peripheral extends BluetoothGattCallback {
 				writeQueue.remove(0);
 				doWrite(characteristic, data, null);
 			} else if (status != BluetoothGatt.GATT_SUCCESS) {
-				if (status == GATT_AUTH_FAIL || status == GATT_INSUFFICIENT_AUTHENTICATION) {
-					Log.d(BleManager.LOG_TAG, "Write needs bonding");
+                if (shouldIgnoreBondingError(status, gatt)) {
+                    Log.e(BleManager.LOG_TAG, "Write needs bonding. charac=" + characteristic.getUuid());
 					// *not* doing completedCommand()
 					return;
 				}
 				for (Callback writeCallback: writeCallbacks) {
-					writeCallback.invoke("Error writing " + characteristic.getUuid() + " status=" + status, null);
+                    writeCallback.invoke("Error writing charac=" + characteristic.getUuid() + ". status=" + status, null);
 				}
 				writeCallbacks.clear();
 			} else if (!writeCallbacks.isEmpty()) {
@@ -509,15 +541,19 @@ public class Peripheral extends BluetoothGattCallback {
 					}
 					Log.d(BleManager.LOG_TAG, "onDescriptorWrite success");
 				} else {
-					for (Callback registerNotifyCallback: registerNotifyCallbacks) {
-						registerNotifyCallback.invoke("Error writing descriptor status=" + status, null);
+                    if (shouldIgnoreBondingError(status, gatt)) {
+                        Log.e(TAG, "onDescriptorWrite needs bonding. descriptor=" + descriptor.getUuid());
+                        return;
 					}
-					Log.e(BleManager.LOG_TAG, "Error writing descriptor status=" + status);
+                    for (Callback registerNotifyCallback : registerNotifyCallbacks) {
+                        registerNotifyCallback.invoke("Error writing descriptor=" + descriptor.getUuid() + ". status=" + status, null);
 				}
+                    Log.e(BleManager.LOG_TAG, "Error writing descriptor=" + descriptor.getUuid() + ". status=" + status);
+                }
 
                 registerNotifyCallbacks.clear();
             } else {
-                Log.e(BleManager.LOG_TAG, "onDescriptorWrite with no callback");
+                Log.e(BleManager.LOG_TAG, "onDescriptorWrite error but no registered callback. descriptor=" + descriptor.getUuid() + ". status=" + status);
             }
 
             completedCommand();
