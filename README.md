@@ -611,17 +611,17 @@ BleManager.getConnectedPeripherals([]).then((peripheralsArray) => {
 ### createBond(peripheralId,peripheralPin) [Android only]
 
 Start the bonding (pairing) process with the remote device. If you pass peripheralPin(optional), bonding will be auto(without manual entering pin)
-Returns a `Promise` object that will resolves if the bond is successfully created, otherwise it will be rejected with the appropriate error message.
+Returns a `Promise` object that will resolves if the bond is successfully created or already exists, otherwise it will be rejected with the appropriate error message.
 
 **Examples**
 
 ```js
 BleManager.createBond(peripheralId)
   .then(() => {
-    console.log("createBond success or there is already an existing one");
+    console.log("bonding established.");
   })
-  .catch(() => {
-    console.log("fail to bond");
+  .catch((reason) => {
+    console.log("failed to bond", reason);
   });
 ```
 
@@ -840,13 +840,22 @@ A peripheral was disconnected.
 - `domain` - `String` - [iOS only] disconnect error domain
 - `code` - `Number` - [iOS only] disconnect error code (<https://developer.apple.com/documentation/corebluetooth/cberror/code>)
 
-### BleManagerPeripheralDidBond
+### BleManagerPeripheralDidBond [Android only]
 
-A bond with a peripheral was established
+A bond with a peripheral was established.
 
 **Arguments**
 
-Object with information about the device
+Object representing the peripheral that just bonded.
+
+### BleManagerPeripheralBondStateChanged [Android only]
+
+A peripheral bond state was updated.
+
+**Arguments**
+
+- `peripheral` - `string` - the id of the peripheral.
+- `bondState` - `string` the new bond state. Can be one of `UNKNOWN`, `BOND_BONDED`, `BOND_BONDING`, `BOND_NONE`.
 
 ### BleManagerCentralManagerWillRestoreState [iOS only]
 
