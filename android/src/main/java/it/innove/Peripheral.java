@@ -353,6 +353,7 @@ public class Peripheral extends BluetoothGattCallback {
                     @Override
                     public void run() {
                         try {
+                            Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected, triggering gatt discoverServices()");
                             gatt.discoverServices();
                         } catch (NullPointerException e) {
                             Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
