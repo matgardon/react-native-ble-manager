@@ -104,6 +104,8 @@ bool hasListeners;
     if (error) {
         NSLog(@"Error in didUpdateNotificationStateForCharacteristic: %@", error);
         if (characteristic == nil){
+            NSLog(@"characteristic is null, aborting: %@", characteristic);
+            //TODO MGA do not return here ?
             return;
         }
         if (hasListeners) {
@@ -784,7 +786,7 @@ RCT_EXPORT_METHOD(requestMTU:(NSString *)deviceUUID mtu:(NSInteger)mtu callback:
     NSLog(@"Peripheral Disconnected: %@", [peripheral uuidAsString]);
     
     if (error) {
-        NSLog(@"Error: %@", error);
+        NSLog(@"Error on disconnect: %@", error);
     }
     
     NSString *peripheralUUIDString = [peripheral uuidAsString];
@@ -810,6 +812,7 @@ RCT_EXPORT_METHOD(requestMTU:(NSString *)deviceUUID mtu:(NSInteger)mtu callback:
     }
     
     NSArray* ourNotificationCallbacks = notificationCallbacks.allKeys;
+    NSLog(@"notificationsCallbacks on disconnect: %@", notificationCallbacks.allKeys);
     for (id key in ourNotificationCallbacks) {
         if ([key hasPrefix:peripheralUUIDString]) {
             [self invokeAndClearDictionary:notificationCallbacks withKey:key usingParameters:@[errorStr]];
@@ -834,7 +837,8 @@ RCT_EXPORT_METHOD(requestMTU:(NSString *)deviceUUID mtu:(NSInteger)mtu callback:
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error {
     if (error) {
-        NSLog(@"Error: %@", error);
+        NSLog(@"Error in didDiscoverServices: %@", error);
+        // TODO MGA why ignore instead of calling callbacks ???
         return;
     }
     NSLog(@"Services Discover");
@@ -855,7 +859,8 @@ RCT_EXPORT_METHOD(requestMTU:(NSString *)deviceUUID mtu:(NSInteger)mtu callback:
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error {
     if (error) {
-        NSLog(@"Error: %@", error);
+        NSLog(@"Error in didDiscoverCharacteristicsForService: %@", error);
+        // TODO MGA why return ?
         return;
     }
     NSLog(@"Characteristics For Service Discover");

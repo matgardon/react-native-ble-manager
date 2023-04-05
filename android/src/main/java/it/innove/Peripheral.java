@@ -122,7 +122,7 @@ public class Peripheral extends BluetoothGattCallback {
                 } else {
                     Log.d(BleManager.LOG_TAG, " Less than M");
                     try {
-                        Log.d(BleManager.LOG_TAG, " Trying TRANPORT LE with reflection");
+                        Log.d(BleManager.LOG_TAG, " Trying TRANSPORT LE with reflection");
                         Method m = device.getClass().getDeclaredMethod("connectGatt", Context.class, Boolean.class,
                                 BluetoothGattCallback.class, Integer.class);
                         m.setAccessible(true);
