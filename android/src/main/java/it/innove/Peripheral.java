@@ -355,28 +355,30 @@ public class Peripheral extends BluetoothGattCallback {
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 connected = true;
 
-                discoverServicesRunnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected, triggering gatt discoverServices()");
-                            gatt.discoverServices();
-                        } catch (NullPointerException e) {
-                            Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
-                        }
-                        discoverServicesRunnable = null;
-                    }
-                };
+                // discoverServicesRunnable = new Runnable() {
+                //     @Override
+                //     public void run() {
+                //         try {
+                //             //TODO MGA we should not trigger that in all cases, maybe bond is still in progress !!!!
+                //             Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected, triggering gatt discoverServices()");
+                //             //TODO MGA: should we discoverServices here or wait for bond ?
+                //             gatt.discoverServices();
+                //         } catch (NullPointerException e) {
+                //             Log.d(BleManager.LOG_TAG, "onConnectionStateChange connected but gatt of Run method was null");
+                //         }
+                //         discoverServicesRunnable = null;
+                //     }
+                // };
 
-                mainHandler.post(discoverServicesRunnable);
+                // mainHandler.post(discoverServicesRunnable);
 
                 sendConnectionEvent(device, "BleManagerConnectPeripheral", status);
 
-				Log.d(BleManager.LOG_TAG, "Connected to: " + device.getAddress());
+                Log.d(BleManager.LOG_TAG, "Connected to: " + device.getAddress());
                 for (Callback connectCallback : connectCallbacks) {
-					connectCallback.invoke();
-				}
-				connectCallbacks.clear();
+                    connectCallback.invoke();
+                }
+                connectCallbacks.clear();
 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
 
